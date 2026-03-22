@@ -1,25 +1,6 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const QuickArtApp());
-}
-
-class QuickArtApp extends StatelessWidget {
-  const QuickArtApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'QuickArt',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'SF Pro Display',
-        scaffoldBackgroundColor: const Color(0xFFF0EDE6),
-      ),
-      home: const CreateAccountPage(),
-    );
-  }
-}
+import 'home_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -79,7 +60,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     }
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
     setState(() => _isLoading = false);
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (route) => false,
+    );
   }
 
   @override

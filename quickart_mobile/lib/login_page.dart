@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const QuickArtApp());
-}
-
-class QuickArtApp extends StatelessWidget {
-  const QuickArtApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'QuickArt',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'SF Pro Display',
-        scaffoldBackgroundColor: const Color(0xFFF0EDE6),
-      ),
-      home: const LoginPage(),
-    );
-  }
-}
+import 'create_account_page.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -58,7 +40,15 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
     setState(() => _isLoading = false);
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomePage(),
+      ),
+    );
   }
 
   @override
@@ -323,23 +313,33 @@ class _LoginPageState extends State<LoginPage> {
 
                       // Register link
                       Center(
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _black.withOpacity(0.5),
-                              fontWeight: FontWeight.w400,
-                            ),
-                            children: const [
-                              TextSpan(text: "Don't have an account? "),
-                              TextSpan(
-                                text: 'Create an Account',
-                                style: TextStyle(
-                                  color: _orange,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CreateAccountPage(),
                               ),
-                            ],
+                            );
+                          },
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _black.withOpacity(0.5),
+                                fontWeight: FontWeight.w400,
+                              ),
+                              children: const [
+                                TextSpan(text: "Don't have an account? "),
+                                TextSpan(
+                                  text: 'Create an Account',
+                                  style: TextStyle(
+                                    color: _orange,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -377,11 +377,11 @@ class _QuickArtLogo extends StatelessWidget {
           ),
         ),
         // Lightning bolt in orange
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 2),
           child: Icon(
             Icons.bolt_rounded,
-            color: const Color(0xFFE8720C),
+            color: Color(0xFFE8720C),
             size: 32,
           ),
         ),
