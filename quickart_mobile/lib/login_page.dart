@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'create_account_page.dart';
 import 'home_page.dart';
+import 'session.dart';
+import 'config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -39,16 +42,39 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+    
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+      final collection = db.collection('users');
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomePage(),
-      ),
-    );
+      final user = await collection.findOne(mongo.where
+          .eq('email', _emailController.text)
+          .eq('password', _passwordController.text));
+
+      await db.close();
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (user != null) {
+        Session.userId = user['_id'].toString();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid email or password')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Connection error: $e')),
+      );
+    }
   }
 
   @override
@@ -248,66 +274,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
 
                       const SizedBox(height: 28),
-
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: _borderColor,
-                              thickness: 1.2,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Text(
-                              'Or continue with',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: _black.withOpacity(0.4),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: _borderColor,
-                              thickness: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Social buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SocialButton(
-                              label: 'Google',
-                              icon: _GoogleIcon(),
-                              onTap: () {},
-                              borderColor: _borderColor,
-                              black: _black,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _SocialButton(
-                              label: 'Github',
-                              icon: const Icon(
-                                Icons.code_rounded,
-                                size: 22,
-                                color: Color(0xFF1A1A1A),
-                              ),
-                              onTap: () {},
-                              borderColor: _borderColor,
-                              black: _black,
-                            ),
-                          ),
-                        ],
-                      ),
 
                       const SizedBox(height: 28),
 

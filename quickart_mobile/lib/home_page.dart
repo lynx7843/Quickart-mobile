@@ -1,158 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'categories_page.dart';
 import 'cart_page.dart';
 import 'wishlist_page.dart';
 import 'profile_page.dart';
+import 'item_detail_page.dart';
+import 'session.dart';
+import 'config.dart';
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 class _Product {
+  final String id;
   final String name;
-  final String seller;
-  final double rating;
-  final int reviewCount;
+  final String description;
   final double price;
-  final String currency;
-  final Color imageBg;
-  final IconData imageIcon;
+  final String imageUrl;
+  final String? model3dUrl;
+  final String category;
   bool isWishlisted;
 
   _Product({
+    required this.id,
     required this.name,
-    required this.seller,
-    required this.rating,
-    required this.reviewCount,
+    required this.description,
     required this.price,
-    this.currency = 'LKR',
-    required this.imageBg,
-    required this.imageIcon,
+    required this.imageUrl,
+    this.model3dUrl,
+    required this.category,
     this.isWishlisted = false,
   });
 }
-
-// ─── Sample Data ──────────────────────────────────────────────────────────────
-
-final List<_Product> _products = [
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Ome witurer',
-    rating: 4.5,
-    reviewCount: 120,
-    price: 4500,
-    imageBg: const Color(0xFFDDE4EC),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Ome nhituer',
-    rating: 4.0,
-    reviewCount: 340,
-    price: 215000,
-    imageBg: const Color(0xFFDDE3F0),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Ome witurer',
-    rating: 4.0,
-    reviewCount: 98,
-    price: 4500,
-    imageBg: const Color(0xFFE8DDD0),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Ome nhitvsr',
-    rating: 4.5,
-    reviewCount: 210,
-    price: 4500,
-    imageBg: const Color(0xFFD8D0C8),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Droe now',
-    rating: 4.5,
-    reviewCount: 75,
-    price: 4500,
-    imageBg: const Color(0xFFCCCCCC),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Droe now',
-    rating: 4.0,
-    reviewCount: 180,
-    price: 215000,
-    imageBg: const Color(0xFFD0D8E8),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Droe now',
-    rating: 3.5,
-    reviewCount: 55,
-    price: 4500,
-    imageBg: const Color(0xFFCCCCCC),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Droe now',
-    rating: 4.5,
-    reviewCount: 290,
-    price: 215000,
-    imageBg: const Color(0xFFD0D8E8),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Droe now',
-    rating: 4.5,
-    reviewCount: 88,
-    price: 4500,
-    imageBg: const Color(0xFFCCCCCC),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Droe now',
-    rating: 4.0,
-    reviewCount: 143,
-    price: 215000,
-    imageBg: const Color(0xFFD0D8E8),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-  _Product(
-    name: "Men's Casual Shirt",
-    seller: 'Droe now',
-    rating: 4.0,
-    reviewCount: 61,
-    price: 4500,
-    imageBg: const Color(0xFFCCCCCC),
-    imageIcon: Icons.checkroom_outlined,
-  ),
-  _Product(
-    name: 'Latest Smartphone Pro',
-    seller: 'Droe now',
-    rating: 4.5,
-    reviewCount: 320,
-    price: 215000,
-    imageBg: const Color(0xFFD0D8E8),
-    imageIcon: Icons.smartphone_outlined,
-  ),
-];
-
-const List<String> _brands = [
-  'NEXUS AI',
-  'AURA',
-  'QuantumLeap',
-  'Stellar',
-  'Nova',
-  'Orion',
-  'CyberCore',
-];
 
 // ─── HomePage ─────────────────────────────────────────────────────────────────
 
@@ -164,30 +43,127 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedBrand = 0;
   int _selectedNavIndex = 0;
   int _cartCount = 1;
+
+  List<_Product> _products = [];
+  bool _isLoading = false;
 
   static const Color _black = Color(0xFF1A1A1A);
   static const Color _orange = Color(0xFFE8720C);
   static const Color _navIconColor = Color(0xFF888888);
 
-  void _toggleWishlist(int index) {
-    setState(() {
-      _products[index].isWishlisted = !_products[index].isWishlisted;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts();
   }
 
-  void _addToCart(int index) {
+  void _fetchProducts() async {
+    setState(() {
+      _isLoading = true;
+      _products = [];
+    });
+
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+      final collection = db.collection('products');
+
+      final items = await collection.find().toList();
+
+      await db.close();
+
+      if (!mounted) return;
+
+      setState(() {
+        _products = items.map((json) => _Product(
+          id: json['_id'].toString(),
+          name: json['name']?.toString() ?? 'Unknown Product',
+          description: json['description']?.toString() ?? '',
+          price: (json['price'] as num?)?.toDouble() ?? 0.0,
+          imageUrl: json['imageUrl']?.toString() ?? '',
+          model3dUrl: json['model3dUrl']?.toString(),
+          category: json['category']?.toString() ?? '',
+        )).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _toggleWishlist(int index) async {
+    final product = _products[index];
+    setState(() {
+      product.isWishlisted = !product.isWishlisted;
+    });
+
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
+      if (pref != null) {
+        List<dynamic> wishlist = pref['wishlist'] ?? [];
+        if (product.isWishlisted) {
+          if (!wishlist.contains(product.id)) wishlist.add(product.id);
+        } else {
+          wishlist.remove(product.id);
+        }
+        await prefCollection.updateOne(
+          mongo.where.eq('userId', Session.userId),
+          mongo.modify.set('wishlist', wishlist),
+        );
+      }
+      await db.close();
+    } catch (e) {
+      debugPrint('Error updating wishlist: $e');
+    }
+  }
+
+  void _addToCart(int index) async {
+    final product = _products[index];
     setState(() => _cartCount++);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_products[index].name} added to cart'),
+        content: Text('${product.name} added to cart'),
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
+      if (pref != null) {
+        List<dynamic> cart = pref['cart'] ?? [];
+        bool found = false;
+        for (var item in cart) {
+          if (item['productId'] == product.id) {
+            item['quantity'] = (item['quantity'] as num).toInt() + 1;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          cart.add({'productId': product.id, 'quantity': 1});
+        }
+        await prefCollection.updateOne(
+          mongo.where.eq('userId', Session.userId),
+          mongo.modify.set('cart', cart),
+        );
+      }
+      await db.close();
+    } catch (e) {
+      debugPrint('Error adding to cart: $e');
+    }
   }
 
   @override
@@ -240,49 +216,60 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF2F2F2),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Colors.black.withOpacity(0.1),
-                            width: 1,
-                          ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const CartPage(),
+                          transitionDuration: Duration.zero,
                         ),
-                        child: Icon(Icons.shopping_cart_outlined,
-                            color: _black, size: 22),
-                      ),
-                      if (_cartCount > 0)
-                        Positioned(
-                          top: -4,
-                          right: -4,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: _black,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white, width: 1.5),
+                      );
+                    },
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F2F2),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.black.withOpacity(0.1),
+                              width: 1,
                             ),
-                            child: Center(
-                              child: Text(
-                                '$_cartCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                          ),
+                          child: Icon(Icons.shopping_cart_outlined,
+                              color: _black, size: 22),
+                        ),
+                        if (_cartCount > 0)
+                          Positioned(
+                            top: -4,
+                            right: -4,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: _black,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$_cartCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -293,12 +280,14 @@ class _HomePageState extends State<HomePage> {
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
-                  // Top Brands
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                  // Featured Products header
                   const SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Top Brands',
+                        'Featured Products',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -309,121 +298,65 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
 
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 42,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _brands.length,
-                        itemBuilder: (context, index) {
-                          final isSelected = index == _selectedBrand;
-                          return GestureDetector(
-                            onTap: () =>
-                                setState(() => _selectedBrand = index),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected ? _black : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? _black
-                                      : Colors.black.withOpacity(0.2),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Text(
-                                _brands[index],
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : _black,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-                  // Featured Products header
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Featured Products',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: _black,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: _black,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              children: [
-                                Text(
-                                  'View All',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(Icons.chevron_right_rounded,
-                                    color: Colors.white, size: 16),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
                   // Product Grid
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _ProductCard(
-                          product: _products[index],
-                          onWishlistTap: () => _toggleWishlist(index),
-                          onAddToCart: () => _addToCart(index),
-                          orange: _orange,
-                          black: _black,
+                  if (_isLoading)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: CircularProgressIndicator(color: _orange),
                         ),
-                        childCount: _products.length,
                       ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 0.72,
+                    )
+                  else if (_products.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            'No products found',
+                            style: TextStyle(
+                              color: _black.withOpacity(0.5),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      sliver: SliverGrid(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _ProductCard(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ItemDetailPage(productId: _products[index].id),
+                                ),
+                              );
+                            },
+                            product: _products[index],
+                            onWishlistTap: () => _toggleWishlist(index),
+                            onAddToCart: () => _addToCart(index),
+                            orange: _orange,
+                            black: _black,
+                          ),
+                          childCount: _products.length,
+                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 0.72,
+                        ),
                       ),
                     ),
-                  ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 ],
@@ -464,6 +397,7 @@ class _ProductCard extends StatelessWidget {
   final _Product product;
   final VoidCallback onWishlistTap;
   final VoidCallback onAddToCart;
+  final VoidCallback? onTap;
   final Color orange;
   final Color black;
 
@@ -471,13 +405,16 @@ class _ProductCard extends StatelessWidget {
     required this.product,
     required this.onWishlistTap,
     required this.onAddToCart,
+    this.onTap,
     required this.orange,
     required this.black,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -501,18 +438,18 @@ class _ProductCard extends StatelessWidget {
             flex: 5,
             child: Stack(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: product.imageBg,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(13)),
-                  ),
-                  width: double.infinity,
-                  child: Center(
-                    child: Icon(
-                      product.imageIcon,
-                      size: 56,
-                      color: Colors.black.withOpacity(0.25),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+                  child: Image.network(
+                    product.imageUrl,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: const Color(0xFFF2F2F2),
+                      child: Center(
+                        child: Icon(Icons.image_not_supported_outlined, color: black.withOpacity(0.2)),
+                      ),
                     ),
                   ),
                 ),
@@ -544,6 +481,33 @@ class _ProductCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (product.model3dUrl != null && product.model3dUrl!.isNotEmpty)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.view_in_ar_rounded, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            '3D',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -570,21 +534,17 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
 
-                  // Seller
+                  // Description
                   Text(
-                    product.seller,
-                    maxLines: 1,
+                    product.description,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
-                      color: black.withOpacity(0.4),
+                      color: black.withOpacity(0.5),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  const SizedBox(height: 4),
-
-                  // Stars
-                  _StarRating(rating: product.rating, orange: orange),
                   const Spacer(),
 
                   // Price + Add button
@@ -592,7 +552,7 @@ class _ProductCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${product.currency} ${_formatPrice(product.price)}',
+                        'LKR ${_formatPrice(product.price)}',
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
@@ -623,6 +583,7 @@ class _ProductCard extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -634,34 +595,6 @@ class _ProductCard extends StatelessWidget {
               RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
     }
     return price.toStringAsFixed(0);
-  }
-}
-
-// ─── Star Rating ──────────────────────────────────────────────────────────────
-
-class _StarRating extends StatelessWidget {
-  final double rating;
-  final Color orange;
-
-  const _StarRating({required this.rating, required this.orange});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(5, (i) {
-        final filled = i < rating.floor();
-        final half = !filled && i < rating;
-        return Icon(
-          half
-              ? Icons.star_half_rounded
-              : filled
-                  ? Icons.star_rounded
-                  : Icons.star_border_rounded,
-          color: orange,
-          size: 13,
-        );
-      }),
-    );
   }
 }
 

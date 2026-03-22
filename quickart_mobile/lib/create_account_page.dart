@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'home_page.dart';
+import 'session.dart';
+import 'config.dart';
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -14,10 +17,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final _organizationController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   static const Color _orange = Color(0xFFE8720C);
@@ -34,7 +36,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    _organizationController.dispose();
     super.dispose();
   }
 
@@ -44,30 +46,61 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
       _emailController,
       _phoneController,
       _passwordController,
-      _confirmPasswordController,
     ];
     if (fields.any((c) => c.text.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
-      return;
-    }
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
+        const SnackBar(content: Text('Please fill in all required fields')),
       );
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-      (route) => false,
-    );
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+      
+      final userId = 'USER-${DateTime.now().millisecondsSinceEpoch}';
+
+      // Insert new user into users collection
+      final usersCollection = db.collection('users');
+      await usersCollection.insertOne({
+        '_id': userId,
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+        'password': _passwordController.text,
+        'organizationName': _organizationController.text,
+        'role': 'CUSTOMER',
+      });
+
+      // Initialize empty cart & wishlist in preferences collection
+      final prefCollection = db.collection('preferences');
+      await prefCollection.insertOne({
+        '_id': 'PREF-${DateTime.now().millisecondsSinceEpoch}',
+        'userId': userId,
+        'cart': [],
+        'wishlist': [],
+      });
+
+      await db.close();
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      Session.userId = userId;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating account: $e')),
+      );
+    }
   }
 
   @override
@@ -212,29 +245,16 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
                       const SizedBox(height: 16),
 
-                      // Confirm Password
+                      // Organization Name
                       _LabeledInputField(
-                        label: 'Confirm Password',
-                        controller: _confirmPasswordController,
-                        hint: 'Confirm password',
-                        prefixIcon: Icons.lock_outline_rounded,
-                        obscureText: _obscureConfirmPassword,
+                        label: 'Organization Name',
+                        controller: _organizationController,
+                        hint: '(Optional)',
+                        prefixIcon: Icons.business_outlined,
                         inputBg: _inputBg,
                         borderColor: _borderColor,
                         hintColor: _hintColor,
                         iconColor: _hintColor,
-                        suffix: GestureDetector(
-                          onTap: () => setState(() =>
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword),
-                          child: Icon(
-                            _obscureConfirmPassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: _hintColor,
-                            size: 20,
-                          ),
-                        ),
                       ),
 
                       const SizedBox(height: 28),

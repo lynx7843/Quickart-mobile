@@ -1,62 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'home_page.dart';
 import 'categories_page.dart';
 import 'cart_page.dart';
 import 'profile_page.dart';
+import 'session.dart';
+import 'config.dart';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
 class _WishlistItem {
+  final String productId;
   final String name;
   final String category;
   final double price;
-  final Color imageBg;
-  final IconData imageIcon;
+  final String imageUrl;
   bool isWishlisted;
 
   _WishlistItem({
+    required this.productId,
     required this.name,
     required this.category,
     required this.price,
-    required this.imageBg,
-    required this.imageIcon,
+    required this.imageUrl,
     this.isWishlisted = true,
   });
 }
-
-// ─── Sample Data ──────────────────────────────────────────────────────────────
-
-final List<_WishlistItem> _wishlistItems = [
-  _WishlistItem(
-    name: 'Monochrome Dial Watch',
-    category: 'LIFESTYLE / ESSENTIALS',
-    price: 18500,
-    imageBg: const Color(0xFF9E9E9E),
-    imageIcon: Icons.watch_outlined,
-  ),
-  _WishlistItem(
-    name: 'Studio Sound Elite',
-    category: 'AUDIO / PRO',
-    price: 45000,
-    imageBg: const Color(0xFFD4874A),
-    imageIcon: Icons.headphones_outlined,
-  ),
-  _WishlistItem(
-    name: 'Kinetic Orange Runners',
-    category: 'FOOTWEAR / SPORT',
-    price: 22000,
-    imageBg: const Color(0xFF2C2C2C),
-    imageIcon: Icons.directions_run_outlined,
-  ),
-  _WishlistItem(
-    name: 'Stealth Walkers',
-    category: 'FOOTWEAR / PREMIUM',
-    price: 57000,
-    imageBg: const Color(0xFF1A1A1A),
-    imageIcon: Icons.directions_walk_outlined,
-  ),
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -70,6 +40,7 @@ class WishlistPage extends StatefulWidget {
 class _WishlistPageState extends State<WishlistPage> {
   int _selectedNavIndex = 3;
   late List<_WishlistItem> _items;
+  bool _isLoading = false;
 
   static const Color _black = Color(0xFF1A1A1A);
   static const Color _orange = Color(0xFFE8720C);
@@ -79,7 +50,54 @@ class _WishlistPageState extends State<WishlistPage> {
   @override
   void initState() {
     super.initState();
-    _items = List.from(_wishlistItems);
+    _items = [];
+    _fetchWishlistData();
+  }
+
+  void _fetchWishlistData() async {
+    setState(() => _isLoading = true);
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      final productCollection = db.collection('products');
+
+      // Fetching preferences for the currently logged-in user
+      final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
+
+      if (pref != null && pref['wishlist'] != null) {
+        List<dynamic> wishlistIds = pref['wishlist'];
+        List<_WishlistItem> fetchedItems = [];
+
+        for (var prodId in wishlistIds) {
+          if (prodId is String && prodId.isNotEmpty) {
+            final prod = await productCollection.findOne(mongo.where.eq('_id', prodId));
+            if (prod != null) {
+              fetchedItems.add(_WishlistItem(
+                productId: prodId,
+                name: prod['name']?.toString() ?? 'Unknown',
+                category: prod['category']?.toString() ?? 'GENERAL',
+                price: (prod['price'] as num?)?.toDouble() ?? 0.0,
+                imageUrl: prod['imageUrl']?.toString() ?? '',
+                isWishlisted: true,
+              ));
+            }
+          }
+        }
+
+        if (mounted) {
+          setState(() => _items = fetchedItems);
+        }
+      }
+      await db.close();
+    } catch (e) {
+      debugPrint('Error fetching wishlist: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   double get _totalValue =>
@@ -92,32 +110,99 @@ class _WishlistPageState extends State<WishlistPage> {
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
-  void _removeItem(int index) {
+  void _removeItem(int index) async {
     setState(() => _items.removeAt(index));
+
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      final updatedWishlist = _items.map((e) => e.productId).toList();
+
+      await prefCollection.updateOne(
+        mongo.where.eq('userId', Session.userId),
+        mongo.modify.set('wishlist', updatedWishlist),
+      );
+
+      await db.close();
+    } catch (e) {
+      debugPrint('Error syncing wishlist: $e');
+    }
   }
 
-  void _moveAllToCart() {
+  void _moveAllToCart() async {
+    if (_items.isEmpty) return;
+
+    final itemsToMove = List.from(_items);
+    setState(() => _items.clear());
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_items.length} items moved to cart'),
+        content: Text('${itemsToMove.length} items moved to cart'),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         backgroundColor: _black,
       ),
     );
+
+    _syncToCartAndWishlist(itemsToMove);
   }
 
-  void _addToCart(_WishlistItem item) {
+  void _addToCart(_WishlistItem item) async {
+    setState(() => _items.remove(item));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${item.name} added to cart'),
+        content: Text('${item.name} moved to cart'),
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         backgroundColor: _black,
       ),
     );
+
+    _syncToCartAndWishlist([item]);
+  }
+
+  Future<void> _syncToCartAndWishlist(List<dynamic> itemsToAdd) async {
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
+
+      if (pref != null) {
+        List<dynamic> currentCart = pref['cart'] ?? [];
+
+        for (var item in itemsToAdd) {
+          bool found = false;
+          for (var cartItem in currentCart) {
+            if (cartItem['productId'] == item.productId) {
+              cartItem['quantity'] = (cartItem['quantity'] as num).toInt() + 1;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            currentCart.add({'productId': item.productId, 'quantity': 1});
+          }
+        }
+
+        final updatedWishlist = _items.map((e) => e.productId).toList();
+
+        await prefCollection.updateOne(
+          mongo.where.eq('userId', Session.userId),
+          mongo.modify.set('cart', currentCart).set('wishlist', updatedWishlist),
+        );
+      }
+
+      await db.close();
+    } catch (e) {
+      debugPrint('Error moving items to cart: $e');
+    }
   }
 
   @override
@@ -241,21 +326,49 @@ class _WishlistPageState extends State<WishlistPage> {
                   const SizedBox(height: 28),
 
                   // ── Wishlist Items ────────────────────────────────────
-                  ..._items.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: _WishlistCard(
-                        item: item,
-                        onRemove: () => _removeItem(index),
-                        onAddToCart: () => _addToCart(item),
-                        orange: _orange,
-                        black: _black,
-                        formatPrice: _formatPrice,
+                  if (_isLoading)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: CircularProgressIndicator(color: _orange),
                       ),
-                    );
-                  }).toList(),
+                    )
+                  else if (_items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.favorite_border_rounded, size: 52, color: _black.withOpacity(0.15)),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Your wishlist is empty',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: _black.withOpacity(0.35),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ..._items.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: _WishlistCard(
+                          item: item,
+                          onRemove: () => _removeItem(index),
+                          onAddToCart: () => _addToCart(item),
+                          orange: _orange,
+                          black: _black,
+                          formatPrice: _formatPrice,
+                        ),
+                      );
+                    }).toList(),
 
                   const SizedBox(height: 8),
                 ],
@@ -307,8 +420,6 @@ class _AppBar extends StatelessWidget {
       color: Colors.white,
       child: Row(
         children: [
-          Icon(Icons.menu_rounded, color: black, size: 22),
-          const SizedBox(width: 10),
           // Logo
           RichText(
             text: TextSpan(
@@ -335,14 +446,24 @@ class _AppBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEEEEEE),
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ProfilePage(),
+                    transitionDuration: Duration.zero),
+              );
+            },
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEEEEEE),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.person_outline_rounded, size: 18, color: black),
             ),
-            child: Icon(Icons.person_outline_rounded, size: 18, color: black),
           ),
         ],
       ),
@@ -460,17 +581,24 @@ class _WishlistCard extends StatelessWidget {
                 height: 200,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: item.imageBg,
+                  color: const Color(0xFFF2F2F2),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(14),
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    item.imageIcon,
-                    size: 72,
-                    color: Colors.white.withOpacity(0.25),
-                  ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  child: item.imageUrl.isNotEmpty
+                      ? Image.network(
+                          item.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                              Icons.image_not_supported_outlined,
+                              size: 52,
+                              color: black.withOpacity(0.2)),
+                        )
+                      : Icon(Icons.image_not_supported_outlined,
+                          size: 52, color: black.withOpacity(0.2)),
                 ),
               ),
               // Wishlist heart
