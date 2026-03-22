@@ -1,0 +1,1 @@
+ D:\\dev\\Quickart-mobile\\quickart_mobile\\.dart_tool\\flutter_build\\5ac473547dd85cf09cb25d00afbafca6\\native_assets.json: 

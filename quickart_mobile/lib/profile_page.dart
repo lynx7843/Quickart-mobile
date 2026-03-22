@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'home_page.dart';
 import 'categories_page.dart';
 import 'cart_page.dart';
 import 'wishlist_page.dart';
+import 'session.dart';
+import 'login_page.dart';
+import 'config.dart';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -16,6 +20,10 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   int _selectedNavIndex = 4;
+  
+  String _name = 'Loading...';
+  String _email = 'Loading...';
+  String _role = '...';
 
   static const Color _black = Color(0xFF1A1A1A);
   static const Color _orange = Color(0xFFE8720C);
@@ -24,9 +32,48 @@ class _ProfilePageState extends State<ProfilePage> {
   static const Color _navIconColor = Color(0xFF999999);
   static const Color _red = Color(0xFFD32F2F);
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  void _fetchUserData() async {
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+      final collection = db.collection('users');
+
+      final user = await collection.findOne(mongo.where.eq('_id', Session.userId));
+
+      if (user != null && mounted) {
+        setState(() {
+          _name = user['name']?.toString() ?? 'Unknown';
+          _email = user['email']?.toString() ?? '';
+          _role = user['role']?.toString() ?? 'CUSTOMER';
+        });
+      }
+      await db.close();
+    } catch (e) {
+      debugPrint('Error fetching user data: $e');
+    }
+  }
+
   void _onMenuTap(String label) {
     if (label == 'Logout') {
       _showLogoutDialog();
+      return;
+    }
+    if (label == 'Settings' || label == 'Help') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('This feature is not available'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          backgroundColor: _black,
+        ),
+      );
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +104,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(color: Color(0xFF888888))),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () {
+              Session.userId = ''; // Clear the session
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
+              );
+            },
             child: const Text('Logout',
                 style: TextStyle(
                     color: Color(0xFFD32F2F), fontWeight: FontWeight.w700)),
@@ -84,59 +138,30 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   const SizedBox(height: 24),
 
-                  // ── Avatar + Edit ──────────────────────────────────────
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8BAF8E),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: const _AvatarIllustration(),
+                  // ── Avatar ─────────────────────────────────────────────
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/profile.jpg',
+                          fit: BoxFit.cover,
                         ),
                       ),
-                      // Edit badge
-                      Positioned(
-                        bottom: -6,
-                        left: 68,
-                        child: GestureDetector(
-                          onTap: () {},
-                          child: Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: _orange,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _orange.withOpacity(0.4),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.edit_rounded,
-                              color: Colors.white,
-                              size: 17,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
 
                   const SizedBox(height: 20),
 
                   // ── Name & Email ───────────────────────────────────────
-                  const Text(
-                    'Alex Harrison',
+                  Text(
+                    _name,
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
@@ -146,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'alex.harrison@quickart.com',
+                    _email,
                     style: TextStyle(
                       fontSize: 13.5,
                       color: _black.withOpacity(0.45),
@@ -164,9 +189,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: _black,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'PREMIUM MEMBER',
-                      style: TextStyle(
+                    child: Text(
+                      _role.toUpperCase(),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -177,38 +202,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   const SizedBox(height: 32),
 
-                  // ── Account Overview Section ───────────────────────────
-                  _SectionLabel(label: 'ACCOUNT OVERVIEW', black: _black),
-                  const SizedBox(height: 10),
-
-                  _MenuCard(
-                    items: [
-                      _MenuItem(
-                        icon: Icons.shopping_bag_outlined,
-                        label: 'My Orders',
-                      ),
-                      _MenuItem(
-                        icon: Icons.local_shipping_outlined,
-                        label: 'Shipping Address',
-                      ),
-                      _MenuItem(
-                        icon: Icons.credit_card_outlined,
-                        label: 'Payment Methods',
-                      ),
-                    ],
-                    onTap: _onMenuTap,
-                    black: _black,
-                    cardColor: _cardColor,
-                  ),
-
-                  const SizedBox(height: 28),
-
                   // ── Preferences Section ────────────────────────────────
                   _SectionLabel(label: 'PREFERENCES', black: _black),
                   const SizedBox(height: 10),
 
                   _MenuCard(
                     items: [
+                      _MenuItem(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit Account',
+                      ),
                       _MenuItem(
                         icon: Icons.settings_outlined,
                         label: 'Settings',
@@ -309,155 +312,18 @@ class _AppBar extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: const BoxDecoration(
-              color: Color(0xFFD4A574),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 20,
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              'assets/profile.jpg',
+              fit: BoxFit.cover,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-// ─── Avatar Illustration ──────────────────────────────────────────────────────
-
-class _AvatarIllustration extends StatelessWidget {
-  const _AvatarIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 100,
-      height: 100,
-      child: CustomPaint(painter: _AvatarPainter()),
-    );
-  }
-}
-
-class _AvatarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Background
-    final bgPaint = Paint()..color = const Color(0xFF8BAF8E);
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
-
-    // Body / shirt
-    final bodyPaint = Paint()..color = const Color(0xFFE8EEE8);
-    final bodyPath = Path()
-      ..moveTo(w * 0.15, h)
-      ..lineTo(w * 0.15, h * 0.72)
-      ..quadraticBezierTo(w * 0.5, h * 0.58, w * 0.85, h * 0.72)
-      ..lineTo(w * 0.85, h)
-      ..close();
-    canvas.drawPath(bodyPath, bodyPaint);
-
-    // Tie
-    final tiePaint = Paint()..color = const Color(0xFF6B7B6E);
-    final tiePath = Path()
-      ..moveTo(w * 0.44, h * 0.62)
-      ..lineTo(w * 0.56, h * 0.62)
-      ..lineTo(w * 0.52, h * 0.82)
-      ..lineTo(w * 0.48, h * 0.82)
-      ..close();
-    canvas.drawPath(tiePath, tiePaint);
-
-    // Neck
-    final neckPaint = Paint()..color = const Color(0xFFD4956A);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.41, h * 0.5, w * 0.18, h * 0.16),
-        const Radius.circular(4),
-      ),
-      neckPaint,
-    );
-
-    // Head
-    final headPaint = Paint()..color = const Color(0xFFD4956A);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.5, h * 0.36),
-        width: w * 0.44,
-        height: h * 0.46,
-      ),
-      headPaint,
-    );
-
-    // Hair
-    final hairPaint = Paint()..color = const Color(0xFF2C2C2C);
-    final hairPath = Path()
-      ..moveTo(w * 0.28, h * 0.28)
-      ..quadraticBezierTo(w * 0.3, h * 0.1, w * 0.5, h * 0.1)
-      ..quadraticBezierTo(w * 0.7, h * 0.1, w * 0.72, h * 0.28)
-      ..quadraticBezierTo(w * 0.68, h * 0.14, w * 0.5, h * 0.14)
-      ..quadraticBezierTo(w * 0.32, h * 0.14, w * 0.28, h * 0.28)
-      ..close();
-    canvas.drawPath(hairPath, hairPaint);
-
-    // Glasses frame left
-    final glassesPaint = Paint()
-      ..color = const Color(0xFF333333)
-      ..strokeWidth = 1.8
-      ..style = PaintingStyle.stroke;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.3, h * 0.33, w * 0.16, h * 0.1),
-        const Radius.circular(3),
-      ),
-      glassesPaint,
-    );
-    // Glasses frame right
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.54, h * 0.33, w * 0.16, h * 0.1),
-        const Radius.circular(3),
-      ),
-      glassesPaint,
-    );
-    // Bridge
-    canvas.drawLine(
-      Offset(w * 0.46, h * 0.375),
-      Offset(w * 0.54, h * 0.375),
-      glassesPaint,
-    );
-
-    // Eyes
-    final eyePaint = Paint()..color = const Color(0xFF333333);
-    canvas.drawCircle(Offset(w * 0.38, h * 0.38), w * 0.025, eyePaint);
-    canvas.drawCircle(Offset(w * 0.62, h * 0.38), w * 0.025, eyePaint);
-
-    // Nose
-    final nosePaint = Paint()
-      ..color = const Color(0xFFC07E50)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    final nosePath = Path()
-      ..moveTo(w * 0.5, h * 0.38)
-      ..lineTo(w * 0.5, h * 0.44)
-      ..quadraticBezierTo(w * 0.47, h * 0.46, w * 0.44, h * 0.45);
-    canvas.drawPath(nosePath, nosePaint);
-
-    // Mouth
-    final mouthPaint = Paint()
-      ..color = const Color(0xFFA0644A)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final mouthPath = Path()
-      ..moveTo(w * 0.42, h * 0.49)
-      ..quadraticBezierTo(w * 0.5, h * 0.535, w * 0.58, h * 0.49);
-    canvas.drawPath(mouthPath, mouthPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Section Label ────────────────────────────────────────────────────────────

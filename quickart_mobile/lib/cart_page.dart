@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 import 'home_page.dart';
 import 'categories_page.dart';
 import 'wishlist_page.dart';
 import 'profile_page.dart';
+import 'session.dart';
+import 'config.dart';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
 class _CartItem {
+  final String productId;
   final String name;
   final String subtitle;
   final double unitPrice;
-  final Color imageBg;
-  final IconData imageIcon;
+  final String imageUrl;
   int quantity;
 
   _CartItem({
+    required this.productId,
     required this.name,
     required this.subtitle,
     required this.unitPrice,
-    required this.imageBg,
-    required this.imageIcon,
+    required this.imageUrl,
     this.quantity = 1,
   });
 
@@ -29,32 +32,7 @@ class _CartItem {
 
 // ─── Sample Data ──────────────────────────────────────────────────────────────
 
-final List<_CartItem> _initialItems = [
-  _CartItem(
-    name: 'Neon Ethereal',
-    subtitle: 'Original Canvas • 24×36',
-    unitPrice: 45000,
-    imageBg: const Color(0xFF7A9E7E),
-    imageIcon: Icons.image_outlined,
-  ),
-  _CartItem(
-    name: 'Monolith Study',
-    subtitle: 'Limited Print • 12×12',
-    unitPrice: 12500,
-    quantity: 2,
-    imageBg: const Color(0xFF8FAE8F),
-    imageIcon: Icons.photo_outlined,
-  ),
-  _CartItem(
-    name: 'Void Fragment',
-    subtitle: 'Sculpture • Bronze',
-    unitPrice: 89000,
-    imageBg: const Color(0xFF6B8F6B),
-    imageIcon: Icons.view_in_ar_outlined,
-  ),
-];
-
-const double _shippingCost = 1200;
+const double _transportcost = 1500;
 const double _taxRate = 0.03;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -69,6 +47,7 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   int _selectedNavIndex = 2;
   late List<_CartItem> _items;
+  bool _isLoading = false;
 
   static const Color _black = Color(0xFF1A1A1A);
   static const Color _orange = Color(0xFFC8803A);
@@ -79,37 +58,107 @@ class _CartPageState extends State<CartPage> {
   @override
   void initState() {
     super.initState();
-    _items = _initialItems.map((e) => _CartItem(
-          name: e.name,
-          subtitle: e.subtitle,
-          unitPrice: e.unitPrice,
-          imageBg: e.imageBg,
-          imageIcon: e.imageIcon,
-          quantity: e.quantity,
-        )).toList();
+    _items = [];
+    _fetchCartData();
+  }
+
+  void _fetchCartData() async {
+    setState(() => _isLoading = true);
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      // Using 'preferences' per your DB structure request
+      final prefCollection = db.collection('preferences');
+      final productCollection = db.collection('products');
+
+      // Fetching preferences for the currently logged-in user
+      final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
+
+      if (pref != null && pref['cart'] != null) {
+        List<dynamic> cartList = pref['cart'];
+        List<_CartItem> fetchedItems = [];
+
+        for (var item in cartList) {
+          String prodId = item['productId']?.toString() ?? '';
+          int qty = (item['quantity'] as num?)?.toInt() ?? 1;
+
+          if (prodId.isNotEmpty) {
+            final prod = await productCollection.findOne(mongo.where.eq('_id', prodId));
+            if (prod != null) {
+              fetchedItems.add(_CartItem(
+                productId: prodId,
+                name: prod['name']?.toString() ?? 'Unknown',
+                subtitle: prod['category']?.toString() ?? 'GENERAL',
+                unitPrice: (prod['price'] as num?)?.toDouble() ?? 0.0,
+                imageUrl: prod['imageUrl']?.toString() ?? '',
+                quantity: qty,
+              ));
+            }
+          }
+        }
+
+        if (mounted) {
+          setState(() => _items = fetchedItems);
+        }
+      }
+      await db.close();
+    } catch (e) {
+      debugPrint('Error fetching cart: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   double get _subtotal => _items.fold(0, (s, i) => s + i.total);
   double get _tax => _subtotal * _taxRate;
-  double get _grandTotal => _subtotal + _shippingCost + _tax;
+  double get _grandTotal => _subtotal + _transportcost + _tax;
 
   String _fmt(double v) => v
       .toStringAsFixed(0)
       .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
 
-  void _increment(int index) => setState(() => _items[index].quantity++);
+  Future<void> _syncCartToDb() async {
+    try {
+      final db = await mongo.Db.create(Config.mongoUrl);
+      await db.open();
+
+      final prefCollection = db.collection('preferences');
+      
+      final updatedCart = _items.map((item) => {
+        'productId': item.productId,
+        'quantity': item.quantity,
+      }).toList();
+
+      await prefCollection.updateOne(
+        mongo.where.eq('userId', Session.userId),
+        mongo.modify.set('cart', updatedCart),
+      );
+
+      await db.close();
+    } catch (e) {
+      debugPrint('Error syncing cart: $e');
+    }
+  }
+
+  void _increment(int index) {
+    setState(() => _items[index].quantity++);
+    _syncCartToDb();
+  }
 
   void _decrement(int index) {
-    setState(() {
-      if (_items[index].quantity > 1) {
-        _items[index].quantity--;
-      }
-    });
+    if (_items[index].quantity > 1) {
+      setState(() => _items[index].quantity--);
+      _syncCartToDb();
+    }
   }
 
   void _remove(int index) {
     final name = _items[index].name;
     setState(() => _items.removeAt(index));
+    _syncCartToDb();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$name removed from cart'),
@@ -172,7 +221,14 @@ class _CartPageState extends State<CartPage> {
                   const SizedBox(height: 28),
 
                   // ── Cart Items ────────────────────────────────────────
-                  if (_items.isEmpty)
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: CircularProgressIndicator(color: _orange),
+                      ),
+                    )
+                  else if (_items.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
@@ -228,7 +284,7 @@ class _CartPageState extends State<CartPage> {
                   const SizedBox(height: 10),
                   _PriceRow(
                     label: 'Shipping',
-                    value: 'LKR ${_fmt(_shippingCost)}',
+                    value: 'LKR ${_fmt(_transportcost)}',
                     black: _black,
                   ),
                   const SizedBox(height: 10),
@@ -277,7 +333,7 @@ class _CartPageState extends State<CartPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content:
-                                      const Text('Proceeding to checkout...'),
+                                      const Text('Payment gateway not setuped'),
                                   duration: const Duration(seconds: 1),
                                   behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(
@@ -377,8 +433,6 @@ class _AppBar extends StatelessWidget {
       color: Colors.white,
       child: Row(
         children: [
-          Icon(Icons.menu_rounded, color: black, size: 22),
-          const SizedBox(width: 10),
           Text(
             'QuickArt',
             style: TextStyle(
@@ -389,15 +443,25 @@ class _AppBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFFD4A574),
-              shape: BoxShape.circle,
-            ),
-            child: ClipOval(
-              child: CustomPaint(painter: _MiniAvatarPainter()),
+          GestureDetector(
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ProfilePage(),
+                    transitionDuration: Duration.zero),
+              );
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFFD4A574),
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: CustomPaint(painter: _MiniAvatarPainter()),
+              ),
             ),
           ),
         ],
@@ -491,11 +555,18 @@ class _CartCard extends StatelessWidget {
             child: Container(
               width: 90,
               height: 90,
-              color: item.imageBg,
-              child: Center(
-                child: Icon(item.imageIcon,
-                    size: 36, color: Colors.white.withOpacity(0.4)),
-              ),
+              color: const Color(0xFFF2F2F2),
+              child: item.imageUrl.isNotEmpty
+                  ? Image.network(
+                      item.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 36,
+                          color: black.withOpacity(0.2)),
+                    )
+                  : Icon(Icons.image_not_supported_outlined,
+                      size: 36, color: black.withOpacity(0.2)),
             ),
           ),
           const SizedBox(width: 14),
