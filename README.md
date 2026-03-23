@@ -10,7 +10,10 @@ Quickart is a feature-rich mobile application developed to replicate and extend 
 It enables users to explore products, view detailed descriptions, and interact with a scalable cloud-based backend. The system leverages modern technologies to ensure performance, reliability, and efficient data handling.
 
 🔗 **Quickart Web Repository:**  
+```bash
 https://github.com/kdsmaduranga/Quickart
+```
+
 ---
 
 ## ✨ Features
