@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Required to fetch images and 3D models from the internet in release/profile mode -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="quickart_mobile"
         android:name="${applicationName}"

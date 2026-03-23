@@ -8,8 +8,6 @@ import 'profile_page.dart';
 import 'session.dart';
 import 'config.dart';
 
-// ─── Model ────────────────────────────────────────────────────────────────────
-
 class _CartItem {
   final String productId;
   final String name;
@@ -30,7 +28,6 @@ class _CartItem {
   double get total => unitPrice * quantity;
 }
 
-// ─── Sample Data ──────────────────────────────────────────────────────────────
 
 const double _transportcost = 1500;
 const double _taxRate = 0.03;
@@ -68,11 +65,9 @@ class _CartPageState extends State<CartPage> {
       final db = await mongo.Db.create(Config.mongoUrl);
       await db.open();
 
-      // Using 'preferences' per your DB structure request
       final prefCollection = db.collection('preferences');
       final productCollection = db.collection('products');
 
-      // Fetching preferences for the currently logged-in user
       final pref = await prefCollection.findOne(mongo.where.eq('userId', Session.userId));
 
       if (pref != null && pref['cart'] != null) {
@@ -177,17 +172,14 @@ class _CartPageState extends State<CartPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── App Bar ───────────────────────────────────────────────────
             _AppBar(black: _black),
 
-            // ── Scrollable Body ───────────────────────────────────────────
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
                   const SizedBox(height: 28),
 
-                  // ── Page Heading ──────────────────────────────────────
                   Text(
                     'YOUR SELECTION',
                     style: TextStyle(
@@ -220,7 +212,6 @@ class _CartPageState extends State<CartPage> {
 
                   const SizedBox(height: 28),
 
-                  // ── Cart Items ────────────────────────────────────────
                   if (_isLoading)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),

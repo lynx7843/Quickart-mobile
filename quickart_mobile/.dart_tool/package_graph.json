@@ -9,6 +9,7 @@
       "dependencies": [
         "cupertino_icons",
         "flutter",
+        "model_viewer_plus",
         "mongo_dart"
       ],
       "devDependencies": [
@@ -39,6 +40,25 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "mongo_dart",
+      "version": "0.10.8",
+      "dependencies": [
+        "basic_utils",
+        "bson",
+        "collection",
+        "crypto",
+        "decimal",
+        "fixnum",
+        "logging",
+        "mongo_dart_query",
+        "path",
+        "pool",
+        "sasl_scram",
+        "uuid",
+        "vy_string_utils"
       ]
     },
     {
@@ -148,6 +168,96 @@
       ]
     },
     {
+      "name": "vy_string_utils",
+      "version": "0.4.7",
+      "dependencies": [
+        "power_extensions"
+      ]
+    },
+    {
+      "name": "sasl_scram",
+      "version": "0.1.2",
+      "dependencies": [
+        "buffer",
+        "collection",
+        "crypto",
+        "saslprep"
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "4.5.3",
+      "dependencies": [
+        "crypto",
+        "fixnum"
+      ]
+    },
+    {
+      "name": "decimal",
+      "version": "3.2.4",
+      "dependencies": [
+        "intl",
+        "rational"
+      ]
+    },
+    {
+      "name": "basic_utils",
+      "version": "5.8.2",
+      "dependencies": [
+        "archive",
+        "http",
+        "json_annotation",
+        "logging",
+        "pointycastle"
+      ]
+    },
+    {
+      "name": "pool",
+      "version": "1.5.2",
+      "dependencies": [
+        "async",
+        "stack_trace"
+      ]
+    },
+    {
+      "name": "mongo_dart_query",
+      "version": "5.0.3",
+      "dependencies": [
+        "bson",
+        "fixnum",
+        "meta"
+      ]
+    },
+    {
+      "name": "logging",
+      "version": "1.3.0",
+      "dependencies": []
+    },
+    {
+      "name": "fixnum",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
+      "name": "crypto",
+      "version": "3.0.7",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
+      "name": "bson",
+      "version": "5.0.8",
+      "dependencies": [
+        "decimal",
+        "fixnum",
+        "packages_extensions",
+        "power_extensions",
+        "rational",
+        "uuid"
+      ]
+    },
+    {
       "name": "sky_engine",
       "version": "0.0.0",
       "dependencies": []
@@ -222,43 +332,9 @@
       ]
     },
     {
-      "name": "vm_service",
-      "version": "15.0.2",
+      "name": "power_extensions",
+      "version": "0.2.4",
       "dependencies": []
-    },
-    {
-      "name": "mongo_dart",
-      "version": "0.10.8",
-      "dependencies": [
-        "basic_utils",
-        "bson",
-        "collection",
-        "crypto",
-        "decimal",
-        "fixnum",
-        "logging",
-        "mongo_dart_query",
-        "path",
-        "pool",
-        "sasl_scram",
-        "uuid",
-        "vy_string_utils"
-      ]
-    },
-    {
-      "name": "fixnum",
-      "version": "1.1.1",
-      "dependencies": []
-    },
-    {
-      "name": "sasl_scram",
-      "version": "0.1.2",
-      "dependencies": [
-        "buffer",
-        "collection",
-        "crypto",
-        "saslprep"
-      ]
     },
     {
       "name": "saslprep",
@@ -268,39 +344,14 @@
       ]
     },
     {
-      "name": "pool",
-      "version": "1.5.2",
-      "dependencies": [
-        "async",
-        "stack_trace"
-      ]
-    },
-    {
-      "name": "mongo_dart_query",
-      "version": "5.0.3",
-      "dependencies": [
-        "bson",
-        "fixnum",
-        "meta"
-      ]
-    },
-    {
-      "name": "unorm_dart",
-      "version": "0.3.2",
-      "dependencies": []
-    },
-    {
       "name": "buffer",
       "version": "1.2.3",
       "dependencies": []
     },
     {
-      "name": "decimal",
-      "version": "3.2.4",
-      "dependencies": [
-        "intl",
-        "rational"
-      ]
+      "name": "rational",
+      "version": "2.2.3",
+      "dependencies": []
     },
     {
       "name": "intl",
@@ -312,79 +363,11 @@
       ]
     },
     {
-      "name": "rational",
-      "version": "2.2.3",
-      "dependencies": []
-    },
-    {
-      "name": "logging",
-      "version": "1.3.0",
-      "dependencies": []
-    },
-    {
-      "name": "vy_string_utils",
-      "version": "0.4.7",
+      "name": "archive",
+      "version": "4.0.9",
       "dependencies": [
-        "power_extensions"
-      ]
-    },
-    {
-      "name": "power_extensions",
-      "version": "0.2.4",
-      "dependencies": []
-    },
-    {
-      "name": "crypto",
-      "version": "3.0.7",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
-      "name": "typed_data",
-      "version": "1.4.0",
-      "dependencies": [
-        "collection"
-      ]
-    },
-    {
-      "name": "bson",
-      "version": "5.0.8",
-      "dependencies": [
-        "decimal",
-        "fixnum",
-        "packages_extensions",
-        "power_extensions",
-        "rational",
-        "uuid"
-      ]
-    },
-    {
-      "name": "packages_extensions",
-      "version": "0.1.2",
-      "dependencies": [
-        "decimal",
-        "power_extensions",
-        "rational"
-      ]
-    },
-    {
-      "name": "uuid",
-      "version": "4.5.3",
-      "dependencies": [
-        "crypto",
-        "fixnum"
-      ]
-    },
-    {
-      "name": "basic_utils",
-      "version": "5.8.2",
-      "dependencies": [
-        "archive",
-        "http",
-        "json_annotation",
-        "logging",
-        "pointycastle"
+        "path",
+        "posix"
       ]
     },
     {
@@ -403,19 +386,40 @@
       ]
     },
     {
-      "name": "convert",
-      "version": "3.1.2",
+      "name": "http",
+      "version": "1.6.0",
       "dependencies": [
-        "typed_data"
+        "async",
+        "http_parser",
+        "meta",
+        "web"
       ]
     },
     {
-      "name": "archive",
-      "version": "4.0.9",
+      "name": "typed_data",
+      "version": "1.4.0",
       "dependencies": [
-        "path",
-        "posix"
+        "collection"
       ]
+    },
+    {
+      "name": "packages_extensions",
+      "version": "0.1.2",
+      "dependencies": [
+        "decimal",
+        "power_extensions",
+        "rational"
+      ]
+    },
+    {
+      "name": "vm_service",
+      "version": "15.0.2",
+      "dependencies": []
+    },
+    {
+      "name": "unorm_dart",
+      "version": "0.3.2",
+      "dependencies": []
     },
     {
       "name": "posix",
@@ -427,18 +431,10 @@
       ]
     },
     {
-      "name": "ffi",
-      "version": "2.2.0",
-      "dependencies": []
-    },
-    {
-      "name": "http",
-      "version": "1.6.0",
+      "name": "convert",
+      "version": "3.1.2",
       "dependencies": [
-        "async",
-        "http_parser",
-        "meta",
-        "web"
+        "typed_data"
       ]
     },
     {
@@ -454,6 +450,163 @@
         "source_span",
         "string_scanner",
         "typed_data"
+      ]
+    },
+    {
+      "name": "ffi",
+      "version": "2.2.0",
+      "dependencies": []
+    },
+    {
+      "name": "model_viewer_plus",
+      "version": "1.9.3",
+      "dependencies": [
+        "android_intent_plus",
+        "flutter",
+        "path",
+        "url_launcher",
+        "web",
+        "webview_flutter",
+        "webview_flutter_android",
+        "webview_flutter_wkwebview"
+      ]
+    },
+    {
+      "name": "url_launcher",
+      "version": "6.3.2",
+      "dependencies": [
+        "flutter",
+        "url_launcher_android",
+        "url_launcher_ios",
+        "url_launcher_linux",
+        "url_launcher_macos",
+        "url_launcher_platform_interface",
+        "url_launcher_web",
+        "url_launcher_windows"
+      ]
+    },
+    {
+      "name": "android_intent_plus",
+      "version": "5.3.1",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "platform"
+      ]
+    },
+    {
+      "name": "url_launcher_platform_interface",
+      "version": "2.3.2",
+      "dependencies": [
+        "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
+      "name": "webview_flutter",
+      "version": "4.13.1",
+      "dependencies": [
+        "flutter",
+        "webview_flutter_android",
+        "webview_flutter_platform_interface",
+        "webview_flutter_wkwebview"
+      ]
+    },
+    {
+      "name": "webview_flutter_platform_interface",
+      "version": "2.14.0",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "url_launcher_linux",
+      "version": "3.2.2",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
+      ]
+    },
+    {
+      "name": "url_launcher_windows",
+      "version": "3.1.5",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
+      ]
+    },
+    {
+      "name": "url_launcher_macos",
+      "version": "3.2.5",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
+      ]
+    },
+    {
+      "name": "platform",
+      "version": "3.1.6",
+      "dependencies": []
+    },
+    {
+      "name": "url_launcher_web",
+      "version": "2.4.1",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "url_launcher_platform_interface",
+        "web"
+      ]
+    },
+    {
+      "name": "flutter_web_plugins",
+      "version": "0.0.0",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "url_launcher_ios",
+      "version": "6.3.6",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
+      ]
+    },
+    {
+      "name": "webview_flutter_wkwebview",
+      "version": "3.24.1",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "path",
+        "webview_flutter_platform_interface"
+      ]
+    },
+    {
+      "name": "webview_flutter_android",
+      "version": "4.10.13",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "webview_flutter_platform_interface"
+      ]
+    },
+    {
+      "name": "url_launcher_android",
+      "version": "6.3.28",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
       ]
     }
   ],
