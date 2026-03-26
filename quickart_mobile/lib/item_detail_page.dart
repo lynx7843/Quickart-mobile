@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 import 'session.dart';
 import 'config.dart';
@@ -12,27 +13,6 @@ import 'config.dart';
 //   import 'package:model_viewer_plus/model_viewer_plus.dart';
 //   ModelViewer(src: item.glbAssetPath, autoRotate: true, ar: true)
 // ─────────────────────────────────────────────────────────────────────────────
-
-void main() {
-  runApp(const QuickArtApp());
-}
-
-class QuickArtApp extends StatelessWidget {
-  const QuickArtApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'QuickArt',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'SF Pro Display',
-        scaffoldBackgroundColor: const Color(0xFFF2F2F0),
-      ),
-      home: const ItemDetailPage(productId: 'PROD-0002'), // default test ID
-    );
-  }
-}
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +27,7 @@ class _ItemData {
   final List<String> highlights;
   final List<String> images;
   final String? glbAssetPath;
-  final bool inStock;
+  final int stock;
 
   const _ItemData({
     required this.name,
@@ -60,8 +40,10 @@ class _ItemData {
     required this.highlights,
     required this.images,
     this.glbAssetPath,
-    this.inStock = true,
+    required this.stock,
   });
+
+  bool get inStock => stock > 0;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -118,13 +100,13 @@ class _ItemDetailPageState extends State<ItemDetailPage>
             category: data['category']?.toString() ?? 'GENERAL',
             seller: 'QuickArt',
             price: (data['price'] as num?)?.toDouble() ?? 0.0,
-            rating: 4.5,
+            rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
             reviewCount: 120,
             description: data['description']?.toString() ?? '',
             highlights: ['Fast delivery', 'Premium quality', 'Authentic design'],
             images: [data['imageUrl']?.toString() ?? ''],
             glbAssetPath: data['model3dUrl']?.toString(),
-            inStock: true,
+            stock: (data['stock'] as num?)?.toInt() ?? 0,
           );
           _isLoading = false;
         });
@@ -753,8 +735,13 @@ class _ImageViewer extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: show3D
-                ? _GlbViewerPlaceholder(black: black, orange: orange)
+            child: show3D && item.glbAssetPath != null
+                ? ModelViewer(
+                    src: item.glbAssetPath!,
+                    autoRotate: true,
+                    ar: true,
+                    cameraControls: true,
+                  )
                 : PageView.builder(
                     controller: pageController,
                     onPageChanged: onPageChanged,
@@ -915,140 +902,6 @@ class _ImageViewer extends StatelessWidget {
       ],
     );
   }
-}
-
-// ─── GLB Viewer Placeholder ───────────────────────────────────────────────────
-// Replace with ModelViewer widget from model_viewer_plus package.
-
-class _GlbViewerPlaceholder extends StatefulWidget {
-  final Color black;
-  final Color orange;
-  const _GlbViewerPlaceholder(
-      {required this.black, required this.orange});
-
-  @override
-  State<_GlbViewerPlaceholder> createState() =>
-      _GlbViewerPlaceholderState();
-}
-
-class _GlbViewerPlaceholderState extends State<_GlbViewerPlaceholder>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _rotateCtrl;
-  late Animation<double> _rotateAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _rotateCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
-    _rotateAnim =
-        Tween<double>(begin: 0, end: 1).animate(_rotateCtrl);
-  }
-
-  @override
-  void dispose() {
-    _rotateCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1C1C1E),
-      child: Stack(
-        children: [
-          // Grid floor effect
-          CustomPaint(
-            painter: _GridPainter(),
-            size: Size.infinite,
-          ),
-          // Rotating 3D icon
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedBuilder(
-                  animation: _rotateAnim,
-                  builder: (context, child) => Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(_rotateAnim.value * 2 * 3.14159),
-                    child: child,
-                  ),
-                  child: Icon(
-                    Icons.watch_outlined,
-                    size: 90,
-                    color: widget.orange.withOpacity(0.85),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: widget.orange.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: widget.orange.withOpacity(0.4),
-                        width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.rotate_right_rounded,
-                          color: widget.orange, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        '3D VIEW — GLB',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.5,
-                          color: widget.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Add model_viewer_plus to pubspec.yaml\nto render the actual .glb model',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: Colors.white.withOpacity(0.35),
-                    height: 1.6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
-      ..strokeWidth = 1;
-    const spacing = 28.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 // ─── Section Card ─────────────────────────────────────────────────────────────

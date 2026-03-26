@@ -318,7 +318,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
                                         crossAxisCount: 2,
                                         mainAxisSpacing: 10,
                                         crossAxisSpacing: 10,
-                                        childAspectRatio: 0.72,
+                                        childAspectRatio: 0.52,
                                       ),
                                       itemCount: _products.length,
                                       itemBuilder: (context, index) {
@@ -594,7 +594,7 @@ class _ProductCard extends StatelessWidget {
         children: [
           // Image area
           Expanded(
-            flex: 5,
+            flex: 6,
             child: Stack(
               children: [
                 ClipRRect(
@@ -673,7 +673,7 @@ class _ProductCard extends StatelessWidget {
 
           // Info area
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Column(
@@ -710,12 +710,15 @@ class _ProductCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'LKR ${_formatPrice(product.price)}',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: black,
+                      Flexible(
+                        child: Text(
+                          'LKR ${_formatPrice(product.price)}',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: black,
+                          ),
                         ),
                       ),
                       GestureDetector(
